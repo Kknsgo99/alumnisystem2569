@@ -1,0 +1,1364 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ระบบข้อมูลศิษย์เก่าและคลังเอกสารของโรงเรียน</title>
+  <!-- UI Libraries -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --primary: #1a56a0;
+      --primary-dark: #0f3d7a;
+      --primary-light: #e8f0fb;
+      --accent: #f59e0b;
+      --success: #10b981;
+      --danger: #ef4444;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-700: #374151;
+      --text: #1f2937;
+      --sidebar-w: 260px;
+    }
+    * { box-sizing: border-box; }
+    body { font-family: 'Sarabun', sans-serif; font-size: 15px; color: var(--text); background: var(--gray-100); }
+
+    /* NAVBAR & SIDEBAR */
+    .top-navbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1050;
+      height: 60px; background: var(--primary);
+      display: flex; align-items: center; padding: 0 1rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    }
+    .top-navbar .brand { color: #fff; font-size: 1.1rem; font-weight: 700; margin-left: .5rem; text-decoration: none; }
+    .top-navbar .ms-auto { display: flex; align-items: center; gap: .75rem; }
+    .top-navbar .user-badge {
+      background: rgba(255,255,255,.15); color: #fff;
+      border-radius: 20px; padding: .35rem .9rem; font-size: .85rem; display: inline-flex; align-items: center; gap: 0.5rem;
+    }
+    .btn-logout { background: rgba(255,255,255,.15); color: #fff; border: none; border-radius: 6px; padding: .35rem .9rem; cursor: pointer; font-family: inherit; font-size: 0.85rem; }
+    .btn-logout:hover { background: rgba(255,255,255,.3); }
+
+    #sidebar {
+      position: fixed; top: 60px; left: 0; bottom: 0;
+      width: var(--sidebar-w); background: var(--primary-dark);
+      overflow-y: auto; z-index: 1040;
+      transition: transform .3s;
+    }
+    #sidebar .nav-section { padding: .8rem 1.2rem .2rem; font-size: .72rem; color: rgba(255,255,255,.45); text-transform: uppercase; letter-spacing: .08em; }
+    #sidebar .nav-link {
+      display: flex; align-items: center; gap: .65rem;
+      padding: .65rem 1.2rem; color: rgba(255,255,255,.8);
+      text-decoration: none; font-size: .9rem; border-radius: 0;
+      transition: background .15s, color .15s;
+      cursor: pointer;
+    }
+    #sidebar .nav-link:hover, #sidebar .nav-link.active {
+      background: rgba(255,255,255,.1); color: #fff;
+      border-left: 4px solid var(--accent);
+    }
+    #sidebar .nav-link i { width: 20px; text-align: center; font-size: 1rem; }
+
+    /* MAIN CONTENT */
+    #main-content { margin-left: var(--sidebar-w); padding-top: 60px; min-height: 100vh; display: flex; flex-direction: column; justify-content: space-between; }
+    .content-area { padding: 1.5rem; flex-grow: 1; }
+
+    /* CARDS */
+    .card { border: none; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.04); }
+    .card-header { background: #fff; border-bottom: 1px solid var(--gray-200); font-weight: 600; padding: 1rem 1.25rem; }
+    .table th { background: var(--gray-50); font-weight: 600; font-size: .85rem; color: var(--gray-700); }
+    .table td { vertical-align: middle; font-size: .88rem; }
+
+    /* STATS */
+    .stat-card { background: #fff; border-radius: 12px; padding: 1.2rem 1.5rem; display: flex; align-items: center; gap: 1rem; box-shadow: 0 2px 10px rgba(0,0,0,.04); }
+    .stat-card .icon { width: 52px; height: 52px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #fff; }
+    .stat-card .val { font-size: 1.6rem; font-weight: 700; line-height: 1; }
+    .stat-card .lbl { font-size: .8rem; color: #777; margin-top: 4px; }
+
+    /* FLOWS & STEPS */
+    .step-form { display: none; }
+    .step-form.active { display: block; }
+    .step-indicator { font-size: 0.82rem; color: #6c757d; font-weight: 600; }
+
+    /* FOOTER */
+    .site-footer {
+      background: var(--primary-dark); color: rgba(255,255,255,.6);
+      text-align: center; padding: 1.2rem; font-size: .85rem;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+
+    /* VIRTUAL DEEKA PREVIEW TEMPLATE CARD */
+    .deeka-template-container {
+      background-image: url('https://images.cocorico.io/cdn-cgi/image/fit=contain,width=1200/uploads/discussions/2dcb9348-73f1-4db8-bbbe-fdbcdbb81408/df0709038e9d1bf4753ba0f59fbf624f.png');
+      background-size: 100% 100%;
+      background-repeat: no-repeat;
+      padding: 3rem;
+      border-radius: 12px;
+      color: #0b1a3f;
+      font-weight: 500;
+      min-height: 480px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      position: relative;
+    }
+    .school-logo-overlay {
+      width: 80px;
+      height: 80px;
+      display: block;
+      margin: 0 auto 1rem;
+      background-image: url('https://images.cocorico.io/cdn-cgi/image/fit=contain,width=1200/uploads/discussions/2dcb9348-73f1-4db8-bbbe-fdbcdbb81408/c70287ae2be03a466a98dfb9d4df28be.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+    }
+
+    /* MOBILE VIEW */
+    @media (max-width: 767px) {
+      #sidebar { transform: translateX(-100%); }
+      #sidebar.open { transform: translateX(0); }
+      #main-content { margin-left: 0; }
+      .sidebar-toggle { display: inline-flex !important; }
+    }
+    .sidebar-toggle { display: none; }
+
+    .page-section { display: none; }
+    .page-section.active { display: block; }
+
+    .form-label { font-weight: 500; font-size: .85rem; color: var(--gray-700); }
+    .required::after { content: ' *'; color: var(--danger); }
+  </style>
+</head>
+<body>
+
+<!-- TOP NAVBAR -->
+<nav class="top-navbar">
+  <button class="btn sidebar-toggle text-white me-1 p-1" onclick="toggleSidebar()"><i class="bi bi-list fs-4"></i></button>
+  <a href="#" class="brand" onclick="showPage('public-home')">ระบบสารสนเทศศิษย์เก่าและผู้ประสานงานวัดผ้าป่าฯ</a>
+  <div class="ms-auto">
+    <span class="user-badge" id="nav-user" style="display:none"></span>
+    <button class="btn-logout" id="nav-logout" onclick="doLogout()" style="display:none"><i class="bi bi-box-arrow-right"></i> ออกจากระบบ</button>
+  </div>
+</nav>
+
+<!-- SIDEBAR MENU -->
+<div id="sidebar">
+  <div id="menu-public">
+    <div class="nav-section">เมนูสาธารณะ</div>
+    <a class="nav-link active" id="link-public-home" onclick="showPage('public-home')"><i class="bi bi-house"></i> หน้าแรก</a>
+    <a class="nav-link" id="link-public-search" onclick="showPage('public-search')"><i class="bi bi-people-fill"></i> ค้นหาศิษย์เก่ารายรุ่น</a>
+    <a class="nav-link" id="link-deeka-search" onclick="showPage('deeka-search')"><i class="bi bi-file-earmark-spreadsheet"></i> ค้นหาฎีกาผ้าป่าและเอกสารเก่า</a>
+    <hr class="my-2 border-secondary" style="opacity: 0.15;">
+    <a class="nav-link" id="link-login" onclick="showPage('login')"><i class="bi bi-box-arrow-in-right"></i> เข้าสู่ระบบจัดการ</a>
+    <a class="nav-link" id="link-register" onclick="showPage('register')"><i class="bi bi-person-plus"></i> ลงทะเบียนศิษย์เก่า</a>
+  </div>
+
+  <div id="menu-admin" style="display:none">
+    <div class="nav-section">แผงควบคุมระบบ</div>
+    <a class="nav-link" id="link-admin-dashboard" onclick="showPage('admin-dashboard')"><i class="bi bi-speedometer2"></i> แดชบอร์ดสถิติ</a>
+    <a class="nav-link" id="link-admin-coordinator-crud" onclick="showPage('admin-coordinator-crud')"><i class="bi bi-person-vcard-fill"></i> จัดการผู้ประสานรุ่น (CRUD)</a>
+    <a class="nav-link" id="link-admin-phapa-maker" onclick="showPage('admin-phapa-maker')"><i class="bi bi-file-earmark-word-fill"></i> จัดทำฎีกาผ้าป่ารุ่น (Google Docs)</a>
+    <a class="nav-link" id="link-admin-deeka-crud" onclick="showPage('admin-deeka-crud')"><i class="bi bi-folder-plus"></i> จัดการคลังใบฎีกา (CRUD)</a>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div id="main-content">
+<div class="content-area">
+
+  <!-- ===== PAGE: PUBLIC HOME ===== -->
+  <div class="page-section active" id="page-public-home">
+    <div class="p-5 mb-4 bg-primary text-white rounded-3 shadow-sm text-center">
+      <div class="container-fluid py-4">
+        <h1 class="display-6 fw-bold">ระบบข้อมูลศิษย์เก่าและคลังเอกสารฎีกาผ้าป่า</h1>
+        <p class="fs-5 mt-3">ค้นหาบัญชีรายชื่อศิษย์เก่า คณะกรรมการผู้ประสานงานรุ่น และออกฎีกาผ้าป่าสามัคคีเพื่อการศึกษา</p>
+        <button class="btn btn-warning btn-lg text-white mt-3 px-4 fw-bold" onclick="showPage('register')"><i class="bi bi-person-plus-fill"></i> ลงทะเบียนข้อมูลศิษย์เก่าออนไลน์</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PAGE: PUBLIC SEARCH ALUMNI ===== -->
+  <div class="page-section" id="page-public-search">
+    <div class="card shadow-sm">
+      <div class="card-header py-3">
+        <h6 class="fw-bold mb-0 text-primary"><i class="bi bi-people-fill"></i> ระบบค้นหาศิษย์เก่าอัจฉริยะ</h6>
+      </div>
+      <div class="card-body">
+        <div class="row g-2 mb-3">
+          <div class="col-md-3">
+            <input type="number" id="filter-alumni-gen" class="form-control" placeholder="ระบุเลขรุ่น (เช่น 1, 10, 25)">
+          </div>
+          <div class="col-md-9">
+            <div class="input-group">
+              <input type="text" id="filter-alumni-q" class="form-control" placeholder="พิมพ์ชื่อ, นามสกุล หรือตำแหน่งในคณะกรรมการเพื่อค้นหา...">
+              <button class="btn btn-primary" onclick="executeAlumniSearch()"><i class="bi bi-search"></i> ค้นหาข้อมูล</button>
+            </div>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="text-center" style="width: 120px;">รุ่น/ปีจบ</th>
+                <th>ชื่อ-นามสกุล (ชื่อเล่น)</th>
+                <th>เบอร์โทรศัพท์มือถือ</th>
+              </tr>
+            </thead>
+            <tbody id="alumni-custom-tbody">
+              <tr><td colspan="3" class="text-center text-muted py-4">ระบุเงื่อนไขค้นหาด้านบนแล้วกดปุ่มค้นหา</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PAGE: DEEKA SEARCH (PUBLIC) ===== -->
+  <div class="page-section" id="page-deeka-search">
+    <div class="card shadow-sm mb-4">
+      <div class="card-header py-3 bg-danger text-white">
+        <h6 class="fw-bold mb-0"><i class="bi bi-search"></i> สืบค้นคลังฎีกาผ้าป่ารุ่นที่จัดทำแล้ว</h6>
+      </div>
+      <div class="card-body">
+        <div class="row g-2 mb-3">
+          <div class="col-md-3">
+            <input type="number" id="phapa-year-q" class="form-control" placeholder="ระบุเลขรุ่นศิษย์เก่า">
+          </div>
+          <div class="col-md-9">
+            <div class="input-group">
+              <input type="text" id="phapa-text-q" class="form-control" placeholder="ค้นหาตามรายชื่อผู้บริจาค...">
+              <button class="btn btn-danger" onclick="executePhaPaSearch()"><i class="bi bi-search"></i> ค้นหาฎีกาผ้าป่า</button>
+            </div>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-bordered table-striped align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>เลขที่ฎีกาผ้าป่า</th>
+                <th>รุ่นศิษย์เก่า</th>
+                <th>ชื่อผู้บริจาค</th>
+                <th class="text-end">จำนวนเงินบริจาค (บาท)</th>
+                <th class="text-center">วันที่ออกฎีกา</th>
+                <th class="text-center">ดาวน์โหลด PDF</th>
+              </tr>
+            </thead>
+            <tbody id="phapa-search-tbody">
+              <tr><td colspan="6" class="text-center text-muted py-4">ระบุข้อมูลค้นหาด้านบนแล้วกดค้นหา</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-header py-3">
+        <h6 class="fw-bold mb-0 text-danger"><i class="bi bi-file-earmark-pdf"></i> คลังใบฎีกาพัสดุและงบประมาณโรงเรียนทั่วไป</h6>
+      </div>
+      <div class="card-body">
+        <div class="row g-2 mb-3">
+          <div class="col-md-3">
+            <input type="number" id="deeka-year-q" class="form-control" placeholder="ระบุปีงบประมาณ พ.ศ. (เช่น 2568)">
+          </div>
+          <div class="col-md-9">
+            <div class="input-group">
+              <input type="text" id="deeka-text-q" class="form-control" placeholder="พิมพ์เลขที่ฎีกา, รายการรายละเอียด หรือผู้รับเงิน...">
+              <button class="btn btn-secondary" onclick="executeDeekaSearch()"><i class="bi bi-search"></i> ค้นหาฎีกาทั่วไป</button>
+            </div>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-bordered table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 130px;">เลขที่ฎีกา</th>
+                <th class="text-center" style="width: 100px;">ปีงบประมาณ</th>
+                <th style="width: 130px;">หมวดรายจ่าย</th>
+                <th>รายการรายละเอียด</th>
+                <th class="text-end" style="width: 130px;">จำนวนเงิน (บาท)</th>
+                <th>ผู้รับเงิน/หน่วยงาน</th>
+                <th class="text-center" style="width: 110px;">เอกสารแนบ</th>
+              </tr>
+            </thead>
+            <tbody id="deeka-table-tbody">
+              <tr><td colspan="7" class="text-center text-muted py-4">ระบุเงื่อนไขด้านบนเพื่อเรียกสืบค้นประวัติคลังฎีกา</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PAGE: LOGIN ===== -->
+  <div class="page-section" id="page-login">
+    <div class="row justify-content-center">
+      <div class="col-md-5">
+        <div class="card shadow-sm">
+          <div class="card-header text-center bg-primary text-white py-3 fw-bold">
+            <i class="bi bi-box-arrow-in-right"></i> เข้าสู่ระบบแผงจัดการข้อมูล
+          </div>
+          <div class="card-body p-4">
+            <div class="mb-3">
+              <label class="form-label">ชื่อผู้ใช้งาน (Username)</label>
+              <input type="text" id="login-user" class="form-control" placeholder="ชื่อผู้ใช้">
+            </div>
+            <div class="mb-4">
+              <label class="form-label">รหัสผ่าน (Password)</label>
+              <input type="password" id="login-pass" class="form-control" placeholder="รหัสผ่าน" onkeydown="if(event.key==='Enter')doLogin()">
+            </div>
+            <button class="btn btn-primary w-100 py-2" onclick="doLogin()">ยืนยันความปลอดภัยเพื่อเข้าใช้งาน</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PAGE: REGISTER ===== -->
+  <div class="page-section" id="page-register">
+    <div class="row justify-content-center">
+      <div class="col-md-7">
+        <div class="card shadow-sm">
+          <div class="card-header bg-success text-white py-3">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-person-plus-fill"></i> ระบบลงทะเบียนศิษย์เก่า</h5>
+          </div>
+          <div class="card-body p-4">
+            <!-- Step 1: ประวัติการติดต่อ -->
+            <div id="step1" class="step-form active">
+              <div class="d-flex justify-content-between mb-3 border-bottom pb-2">
+                <span class="fw-bold text-primary">ขั้นตอนที่ 1: ข้อมูลประวัติและช่องทางการติดต่อ</span>
+                <span class="step-indicator">1 จาก 3</span>
+              </div>
+              
+              <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                  <label class="form-label required">รุ่นศิษย์เก่า (รุ่นที่)</label>
+                  <input type="number" id="reg_generation" class="form-control" placeholder="ใส่ตัวเลข เช่น 25" required>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label required">คำนำหน้าชื่อ</label>
+                  <select id="reg_prefix" class="form-select" onchange="togglePrefixOther()">
+                    <option value="นาย">นาย</option>
+                    <option value="นาง">นาง</option>
+                    <option value="นางสาว">นางสาว</option>
+                    <option value="ดร.">ดร.</option>
+                    <option value="other">อื่นๆ (ระบุเอง)</option>
+                  </select>
+                  <div id="prefix_other_container" class="mt-2" style="display: none;">
+                    <input type="text" id="reg_prefix_other" class="form-control" placeholder="ระบุคำนำหน้าชื่อ เช่น ว่าที่ ร.ต., พระ">
+                  </div>
+                </div>
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                  <label class="form-label required">ชื่อจริง</label>
+                  <input type="text" id="reg_firstName" class="form-control" required>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label required">นามสกุล</label>
+                  <input type="text" id="reg_lastName" class="form-control" required>
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">ชื่อเล่น</label>
+                  <input type="text" id="reg_nickname" class="form-control">
+                </div>
+              </div>
+
+              <div class="row g-3 mb-4">
+                <div class="col-md-12">
+                  <label class="form-label required">เบอร์โทรศัพท์มือถือ</label>
+                  <input type="tel" id="reg_mobile" class="form-control" value="08" required>
+                </div>
+              </div>
+
+              <button type="button" class="btn btn-primary w-100 py-2" onclick="handleSendOTP()">บันทึกข้อมูลและรับรหัสความปลอดภัย OTP</button>
+            </div>
+
+            <!-- Step 2: ตรวจสอบความปลอดภัยด้วยรหัส OTP -->
+            <div id="step2" class="step-form">
+              <div class="d-flex justify-content-between mb-3 border-bottom pb-2">
+                <span class="fw-bold text-warning">ขั้นตอนที่ 2: ตรวจสอบยืนยันระบบความปลอดภัย OTP</span>
+                <span class="step-indicator">2 จาก 3</span>
+              </div>
+              <p class="text-muted small">ระบบได้ส่งรหัสผ่านความปลอดภัยชั่วคราว (OTP) เพื่อตรวจสอบเบอร์มือถือของคุณเรียบร้อย</p>
+              <div class="mb-4 text-center">
+                <label class="form-label d-block text-start required">กรอกรหัสความปลอดภัย OTP 4 หลัก</label>
+                <input type="text" id="reg_otp" class="form-control text-center fs-2 fw-bold" maxlength="4" placeholder="0000" style="letter-spacing: 12px;">
+              </div>
+              <button type="button" class="btn btn-warning text-white w-100 py-2 mb-2" onclick="handleVerifyOTP()">ตรวจสอบความถูกต้อง</button>
+              <button type="button" class="btn btn-light w-100 btn-sm" onclick="changeStep(1)">แก้ไขประวัติก่อนหน้า</button>
+            </div>
+
+            <!-- Step 3: กำหนดสิทธิ์รหัสผ่านเพื่อเข้าใช้งาน -->
+            <div id="step3" class="step-form">
+              <div class="d-flex justify-content-between mb-3 border-bottom pb-2">
+                <span class="fw-bold text-success">ขั้นตอนที่ 3: กำหนดชื่อผู้ใช้และรหัสผ่านเพื่อแก้ไขประวัติ</span>
+                <span class="step-indicator">3 จาก 3</span>
+              </div>
+              <div class="mb-3">
+                <label class="form-label required">กำหนดชื่อผู้ใช้ (Username)</label>
+                <input type="text" id="reg_username" class="form-control" placeholder="ภาษาอังกฤษหรือตัวเลข">
+              </div>
+              <div class="mb-3">
+                <label class="form-label required">กำหนดรหัสผ่าน (Password)</label>
+                <input type="password" id="reg_password" class="form-control" placeholder="กำหนดรหัสผ่าน">
+              </div>
+              <div class="mb-4">
+                <label class="form-label required">ยืนยันรหัสผ่านอีกครั้ง (Confirm Password)</label>
+                <input type="password" id="reg_confirm_password" class="form-control" placeholder="กรอกรหัสผ่านเดิมให้ตรงกัน">
+              </div>
+              <button type="button" class="btn btn-success w-100 py-2" onclick="handleFinalRegister()">บันทึกจัดเก็บประวัติศิษย์เก่า</button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PAGE: ADMIN DASHBOARD ===== -->
+  <div class="page-section" id="page-admin-dashboard">
+    <h4 class="mb-4 fw-bold"><i class="bi bi-bar-chart-fill text-primary"></i> ภาพรวมฐานข้อมูลโรงเรียนปี 2026</h4>
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="stat-card">
+          <div class="icon bg-primary"><i class="bi bi-people-fill"></i></div>
+          <div>
+            <div class="val" id="dash-alumni">0</div>
+            <div class="lbl">ประวัติศิษย์เก่าที่ลงทะเบียน</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="stat-card">
+          <div class="icon bg-danger"><i class="bi bi-file-earmark-spreadsheet-fill"></i></div>
+          <div>
+            <div class="val" id="dash-deeka">0</div>
+            <div class="lbl">จำนวนประวัติคลังใบฎีกา</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="stat-card">
+          <div class="icon bg-success"><i class="bi bi-wallet2"></i></div>
+          <div>
+            <div class="val" id="dash-budget">0.00</div>
+            <div class="lbl">งบประมาณรวมคลังฎีกา (บาท)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card shadow-sm p-3">
+      <div class="card-header bg-white border-0 py-2">
+        <h6 class="fw-bold text-dark mb-0">กราฟสรุปจำนวนฐานข้อมูลที่ใช้จริง</h6>
+      </div>
+      <div class="card-body">
+        <canvas id="dbChart" style="max-height: 280px;"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PAGE: ADMIN COORDINATOR CRUD ===== -->
+  <div class="page-section" id="page-admin-coordinator-crud">
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-primary text-white py-3 d-flex justify-content-between align-items-center">
+        <h6 class="fw-bold mb-0"><i class="bi bi-person-vcard-fill"></i> บันทึกข้อมูลและจัดการผู้ประสานงานรุ่น</h6>
+        <button class="btn btn-light btn-sm fw-bold" onclick="openCoordinatorModal()"><i class="bi bi-plus-circle"></i> เพิ่มผู้ประสานรุ่นใหม่</button>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-bordered table-striped align-middle">
+            <thead class="table-light">
+              <tr>
+                <th class="text-center">รุ่นศิษย์เก่า</th>
+                <th>ชื่อ-นามสกุล (ชื่อเล่น)</th>
+                <th>เบอร์โทรศัพท์</th>
+                <th>ID LINE</th>
+                <th>หมายเหตุ / ตำแหน่งเพิ่มเติม</th>
+                <th class="text-center">การจัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="coordinator-tbody">
+              <tr><td colspan="6" class="text-center py-4 text-muted">กำลังเรียกสแกนรายชื่อผู้ประสานรุ่น...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PAGE: ADMIN PHAPA MAKER (GOOGLE DOCS TEMPLATE) ===== -->
+  <div class="page-section" id="page-admin-phapa-maker">
+    <div class="row g-3">
+      <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-primary text-white">
+            <h6 class="fw-bold mb-0"><i class="bi bi-file-earmark-word-fill"></i> ออกแบบและจัดทำฎีกาผ้าป่ารุ่น</h6>
+          </div>
+          <div class="card-body">
+            <form id="phapaDeekaForm" oninput="updateDeekaPreview()">
+              <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                  <label class="form-label required">ศิษย์เก่ารุ่นที่</label>
+                  <input type="number" id="pp_generation" class="form-control" required placeholder="เช่น 25">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label required">คำนำหน้า</label>
+                  <select id="pp_prefix" class="form-select">
+                    <option value="นาย">นาย</option>
+                    <option value="นาง">นาง</option>
+                    <option value="นางสาว">นางสาว</option>
+                    <option value="ดร.">ดร.</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-md-5">
+                  <label class="form-label required">ชื่อจริง</label>
+                  <input type="text" id="pp_firstName" class="form-control" required placeholder="รักสวรรค์">
+                </div>
+                <div class="col-md-5">
+                  <label class="form-label required">นามสกุล</label>
+                  <input type="text" id="pp_lastName" class="form-control" required placeholder="นาสวรรค์">
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label">ชื่อเล่น</label>
+                  <input type="text" id="pp_nickname" class="form-control" placeholder="บอส">
+                </div>
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                  <label class="form-label">บ้านเลขที่</label>
+                  <input type="text" id="pp_addressNo" class="form-control" placeholder="123">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">หมู่ที่</label>
+                  <input type="text" id="pp_moo" class="form-control" placeholder="4">
+                </div>
+                <div class="col-md-4">
+                  <label class="form-label">ตำบล</label>
+                  <input type="text" id="pp_subdistrict" class="form-control" value="นาสวรรค์">
+                </div>
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                  <label class="form-label">อำเภอ</label>
+                  <input type="text" id="pp_district" class="form-control" value="เมืองบึงกาฬ">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">จังหวัด</label>
+                  <input type="text" id="pp_province" class="form-control" value="บึงกาฬ">
+                </div>
+              </div>
+
+              <div class="mb-4">
+                <label class="form-label required">จำนวนเงินบริจาค (บาท)</label>
+                <input type="number" id="pp_amount" class="form-control fw-bold text-primary" required placeholder="1000.00">
+              </div>
+
+              <button type="button" class="btn btn-success w-100 py-2.5 fw-bold" onclick="processGeneratePhaPaDeeka()">
+                <i class="bi bi-file-earmark-pdf-fill"></i> สั่งสร้าง Google Docs และแปลงเป็นไฟล์ PDF
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <h6 class="fw-bold mb-0"><i class="bi bi-eye"></i> หน้าจอจำลองฎีกาผ้าป่าใบอนุโมทนา</h6>
+            <span class="badge bg-danger rounded-pill">ภาพจำลองจริง</span>
+          </div>
+          <div class="card-body d-flex align-items-center justify-content-center bg-secondary-subtle">
+            <div class="deeka-template-container w-100 text-center" id="deeka-preview-box">
+              <div class="school-logo-overlay"></div>
+              <h5 class="fw-bold mb-1">ขอเชิญร่วมเป็นเจ้าภาพทอดผ้าป่าสามัคคีเพื่อการศึกษา</h5>
+              <h6 class="fw-bold mb-1">รำลึก ๖๖ ปี โรงเรียนบ้านนาสวรรค์</h6>
+              <h6 class="fw-bold mb-3">“คืนสู่เหย้า ศิษย์เก่านาสวรรค์”</h6>
+              <p class="small mb-4 text-secondary">ณ โรงเรียนบ้านนาสวรรค์ หมู่ที่ ๔ ตำบลนาสวรรค์ อำเภอเมืองบึงกาฬ จังหวัดบึงกาฬ<br>วันที่ ๒๙ - ๓๐ เดือน ธันวาคม พ.ศ. ๒๕๖๙</p>
+              
+              <div class="text-start border-top border-bottom border-primary py-3 my-3">
+                <p class="mb-1"><strong>ผู้ประสานงานจัดทำ:</strong> รุ่นที่ <span id="view-pp-gen">...</span></p>
+                <p class="mb-1"><strong>นามผู้บริจาค:</strong> <span id="view-pp-name">...</span></p>
+                <p class="mb-1"><strong>ที่อยู่:</strong> <span id="view-pp-address">...</span></p>
+                <p class="mb-1"><strong>จำนวนเงินร่วมบุญ:</strong> <span class="text-primary fw-bold" id="view-pp-amount">...</span> บาท</p>
+              </div>
+
+              <p class="small mt-2" style="font-size: 11px;">ขออำนาจคุณพระศรีรัตนตรัย จงบันดาลให้สาธุชนจงประสบแต่ความสุขความเจริญ ด้วยอายุ วรรณะ สุขะ พละ ปฏิภาณธนสารสมบัติทุกประการ เจริญก้าวหน้าในชีวิต เทอญ</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PAGE: ADMIN DEEKA CRUD ===== -->
+  <div class="page-section" id="page-admin-deeka-crud">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h6 class="fw-bold m-0 text-dark"><i class="bi bi-tools text-danger"></i> ระบบควบคุมและบริหารคลังใบฎีกาทั่วไป</h6>
+        <button class="btn btn-sm btn-primary px-3 py-1.5" onclick="openDeekaModal()"><i class="bi bi-plus-circle"></i> บันทึกข้อมูลใบฎีกาใหม่</button>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-striped align-middle m-0">
+            <thead class="table-light">
+              <tr>
+                <th style="padding-left: 1.25rem;">เลขที่ฎีกา</th>
+                <th class="text-center">ปีงบฯ</th>
+                <th>หมวดรายจ่าย</th>
+                <th>รายการรายละเอียด</th>
+                <th class="text-end">จำนวนเงิน</th>
+                <th>ผู้รับเงิน</th>
+                <th class="text-center" style="width: 150px;">การจัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="admin-deeka-tbody">
+              <tr><td colspan="7" class="text-center py-4 text-muted">กำลังเรียกสแกนข้อมูลฎีกา...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- MODAL FOR COORDINATOR CRUD -->
+<div class="modal fade" id="coordinatorModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-primary text-white py-2.5">
+        <h6 class="modal-title fw-bold" id="coordinatorModalLabel">ฟอร์มผู้ประสานงานรุ่น</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <form id="coordinatorForm">
+          <input type="hidden" id="coord_id">
+          <div class="mb-3">
+            <label class="form-label required">ศิษย์เก่ารุ่นที่</label>
+            <input type="number" id="coord_generation" class="form-control form-control-sm" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label required">คำนำหน้า</label>
+            <select id="coord_prefix" class="form-select form-select-sm">
+              <option value="นาย">นาย</option>
+              <option value="นาง">นาง</option>
+              <option value="นางสาว">นางสาว</option>
+              <option value="ดร.">ดร.</option>
+            </select>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label required">ชื่อจริง</label>
+              <input type="text" id="coord_firstName" class="form-control form-control-sm" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label required">นามสกุล</label>
+              <input type="text" id="coord_lastName" class="form-control form-control-sm" required>
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label">ชื่อเล่น</label>
+              <input type="text" id="coord_nickname" class="form-control form-control-sm">
+            </div>
+            <div class="col-6">
+              <label class="form-label required">เบอร์โทรศัพท์</label>
+              <input type="tel" id="coord_mobile" class="form-control form-control-sm" required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">ID LINE</label>
+            <input type="text" id="coord_lineId" class="form-control form-control-sm">
+          </div>
+          <div class="mb-4">
+            <label class="form-label">หมายเหตุเพิ่มเติม</label>
+            <input type="text" id="coord_note" class="form-control form-control-sm" placeholder="เช่น ประธานโครงการผ้าป่ารุ่น">
+          </div>
+          <button type="button" class="btn btn-primary w-100 py-2 fw-bold" onclick="processSaveCoordinator()">บันทึกข้อมูลผู้ประสานรุ่น</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FOR DEEKA CRUD -->
+<div class="modal fade" id="deekaModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-dark text-white py-2.5">
+        <h6 class="modal-title fw-bold" id="deekaModalLabel">ฟอร์มบันทึกข้อมูลและแนบเอกสารฎีกา</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <form id="deekaForm">
+          <div class="mb-3">
+            <label class="form-label small required">เลขที่ฎีกา</label>
+            <input type="text" id="m_id" class="form-control form-control-sm" required placeholder="เช่น 2568/001">
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small required">ปีงบประมาณ (พ.ศ.)</label>
+              <input type="number" id="m_yr" class="form-control form-control-sm" required placeholder="เช่น 2568">
+            </div>
+            <div class="col-6">
+              <label class="form-label small required">หมวดรายจ่าย</label>
+              <input type="text" id="m_cat" class="form-control form-control-sm" required placeholder="เช่น งบดำเนินงาน">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small required">รายการรายละเอียด</label>
+            <textarea id="m_det" class="form-control form-control-sm" rows="3" required placeholder="ระบุรายละเอียดโครงการ / รายการจัดซื้อจัดจ้าง..."></textarea>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small required">จำนวนเงิน (บาท)</label>
+              <input type="number" id="m_amt" step="0.01" class="form-control form-control-sm" required placeholder="0.00">
+            </div>
+            <div class="col-6">
+              <label class="form-label small required">ผู้รับเงิน/หน่วยงาน</label>
+              <input type="text" id="m_pay" class="form-control form-control-sm" required placeholder="ชื่อห้างร้าน/บุคคล">
+            </div>
+          </div>
+          <div class="mb-4">
+            <label class="form-label small">อัปโหลดไฟล์สแกนใบเสร็จ/ฎีกา (PDF, Image)</label>
+            <input type="file" id="m_file" class="form-control form-control-sm" accept="application/pdf,image/*">
+            <input type="hidden" id="m_url">
+          </div>
+          <button type="button" class="btn btn-primary w-100 py-2 fw-bold" onclick="processSaveDeeka()">บันทึกจัดเก็บเอกสารและส่งฐานข้อมูล</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer class="site-footer">
+  Copyright © 2026 | ระบบจัดการศิษย์เก่าโรงเรียนบ้านนาสวรรค์และคลังใบฎีกาเงินเก่า
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // ==========================================
+  // กำหนดลิงก์ปลายทาง API Google Apps Script ที่ Deploy เสร็จสมบูรณ์
+  // ==========================================
+  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx0Zfr_hAAs-WkkjB33PFobcBEdoPUkpmZ6w-oExsa5MAqELRSRuHMGHRT12TucYostcw/exec"; 
+
+  let currentSession = null;
+  let deekaModal = null;
+  let coordinatorModal = null;
+  let chartInstance = null;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    deekaModal = new bootstrap.Modal(document.getElementById('deekaModal'));
+    coordinatorModal = new bootstrap.Modal(document.getElementById('coordinatorModal'));
+    if (WEB_APP_URL.includes("ใส่_URL")) {
+      Swal.fire({
+        title: 'โหมดสาธิตแบบออฟไลน์ (Demo Mode)',
+        text: 'ระบบจำลองการทำงานบนหน้าต่างหลักเรียบร้อย หากต้องการเซฟลง Sheets กรุณาใส่ URL เว็บแอป',
+        icon: 'info'
+      });
+    }
+    updateDeekaPreview();
+  });
+
+  // ==========================================
+  // จัดการประมวลผลรับส่งข้อมูลกับเซิร์ฟเวอร์
+  // ==========================================
+  function runBackend(action, parameters, callback) {
+    if (WEB_APP_URL.includes("ใส่_URL")) {
+      // ข้อมูลจำลองสำหรับทดสอบฝั่งหน้าบ้าน
+      setTimeout(() => {
+        let mock = { success: true };
+        if (action === 'sendOTPToPhone') mock.debugOtp = "7755";
+        if (action === 'getDashboardMetrics') mock = { success: true, alumniCount: 145, deekaCount: 84, totalBudget: 1542000 };
+        if (action === 'login') mock = { success: true, user: { name: 'ผู้ดูแลระบบระบบ (แอดมิน)', role: 'admin' } };
+        if (action === 'getAlumni') {
+          mock.data = [
+            { id:"ALM-1", generation: 1, graduateYear: 2555, prefix: "นาย", firstName: "รักดี", lastName: "วิทยา", nickname: "ที", mobile: "0812345678" }
+          ];
+        }
+        if (action === 'getCoordinators') {
+          mock.data = [
+            { id:"COORD-1", generation: 25, prefix: "นาย", firstName: "รักเรียน", lastName: "วิทยา", nickname: "มิกซ์", mobile: "0812345678", lineId: "mix_line", note: "ประธานโครงการ" }
+          ];
+        }
+        if (action === 'searchDeekaDocuments') {
+          mock.data = [
+            { deekaId: "DK68/001", year: 2568, category: "งบลงทุน", detail: "จัดซื้อเครื่องคอมพิวเตอร์สำหรับการเรียนการสอน", amount: 240000, payee: "หจก.ไอที", fileUrl: "#" }
+          ];
+        }
+        if (action === 'generatePhaPaDeeka') {
+          mock.pdfUrl = "https://example.com/mock-phapa.pdf";
+        }
+        if (action === 'getPhaPaDeekaList') {
+          mock.data = [
+            { deekaId: "PP-DEEKA-25-A1", generation: 25, donorName: "คุณทักษิณา วารี", amount: 5000, fileUrl: "https://example.com/mock-pdf", dateCreated: "29/12/2569" }
+          ];
+        }
+        callback(mock);
+      }, 500);
+      return;
+    }
+
+    const payload = { action: action, ...parameters };
+    
+    // ยิง API ด้วยความเสถียรข้ามโดเมน Bypass CORS
+    fetch(WEB_APP_URL, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8'
+      }
+    })
+    .then(res => res.json())
+    .then(data => callback(data))
+    .catch(err => {
+      Swal.fire('การเชื่อมต่อล้มเหลว', 'เกิดความผิดพลาดในการส่งข้อมูล: ' + err.message, 'error');
+      Swal.close();
+    });
+  }
+
+  // ระบบสลับหน้า (Single Page Web App)
+  function showPage(id) {
+    document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('#sidebar .nav-link').forEach(link => link.classList.remove('active'));
+    
+    const target = document.getElementById('page-' + id);
+    if(target) target.classList.add('active');
+    
+    const activeLink = document.getElementById('link-' + id);
+    if(activeLink) activeLink.classList.add('active');
+    
+    document.getElementById('sidebar').classList.remove('open');
+    if(id === 'admin-dashboard') loadDash();
+    if(id === 'admin-deeka-crud') loadDeekaTable();
+    if(id === 'admin-coordinator-crud') loadCoordinatorsTable();
+  }
+  
+  function toggleSidebar() { 
+    document.getElementById('sidebar').classList.toggle('open'); 
+  }
+
+  // ระบบสลับอินพุตระบุคำนำหน้าชื่ออื่นๆ
+  function togglePrefixOther() {
+    const prefixSelect = document.getElementById('reg_prefix');
+    const container = document.getElementById('prefix_other_container');
+    if (prefixSelect.value === 'other') {
+      container.style.display = 'block';
+    } else {
+      container.style.display = 'none';
+    }
+  }
+
+  // ระบบ Register (Step-by-Step)
+  function changeStep(s) { 
+    document.querySelectorAll('.step-form').forEach(f => f.classList.remove('active')); 
+    document.getElementById('step' + s).classList.add('active'); 
+  }
+
+  function handleSendOTP() {
+    const mobile = document.getElementById('reg_mobile').value.trim();
+    if(!document.getElementById('reg_generation').value || !document.getElementById('reg_firstName').value || !document.getElementById('reg_lastName').value) {
+      Swal.fire('เตือน', 'กรุณากรอกข้อมูลส่วนตัวในฟิลด์ที่จำเป็น (*) ให้ครบถ้วน', 'warning');
+      return;
+    }
+    
+    // ตรวจสอบคำนำหน้าชื่อกรณีระบุเอง
+    if (document.getElementById('reg_prefix').value === 'other' && !document.getElementById('reg_prefix_other').value.trim()) {
+      Swal.fire('เตือน', 'กรุณาระบุคำนำหน้าชื่อที่คุณพิมพ์ด้วยตนเอง', 'warning');
+      return;
+    }
+
+    Swal.showLoading();
+    runBackend('sendOTPToPhone', { mobile: mobile }, res => {
+      Swal.close();
+      if(res.success) { 
+        Swal.fire('ส่งสำเร็จ', `ระบบได้ส่งรหัส OTP 4 หลักจำลอง: <b>${res.debugOtp}</b>`, 'success'); 
+        changeStep(2); 
+      }
+    });
+  }
+  
+  function handleVerifyOTP() {
+    const mobile = document.getElementById('reg_mobile').value.trim();
+    const otp = document.getElementById('reg_otp').value.trim();
+    Swal.showLoading();
+    runBackend('verifyOTPCode', { mobile: mobile, otp: otp }, res => {
+      Swal.close();
+      if(res.success) {
+        Swal.fire('ยืนยันรหัสถูกต้อง', 'รหัส OTP ได้รับการอนุมัติความปลอดภัยเรียบร้อย', 'success');
+        changeStep(3); 
+      } else {
+        Swal.fire('ผิดพลาด', res.message, 'error'); 
+      }
+    });
+  }
+  
+  function handleFinalRegister() {
+    const pass = document.getElementById('reg_password').value;
+    const confirm = document.getElementById('reg_confirm_password').value;
+    if (pass !== confirm) {
+      Swal.fire('รหัสผ่านไม่ตรงกัน', 'กรุณายืนยันรหัสผ่านใหม่อีกครั้งให้ตรงกัน', 'error');
+      return;
+    }
+
+    // สกัดค่าคำนำหน้าชื่อ
+    let prefixVal = document.getElementById('reg_prefix').value;
+    if (prefixVal === 'other') {
+      prefixVal = document.getElementById('reg_prefix_other').value.trim();
+    }
+    
+    Swal.showLoading();
+    runBackend('finalRegisterAlumni', {
+      generation: document.getElementById('reg_generation').value,
+      prefix: prefixVal,
+      firstName: document.getElementById('reg_firstName').value,
+      lastName: document.getElementById('reg_lastName').value,
+      nickname: document.getElementById('reg_nickname').value,
+      mobile: document.getElementById('reg_mobile').value,
+      username: document.getElementById('reg_username').value,
+      password: pass
+    }, res => {
+      Swal.close();
+      if(res.success) { 
+        Swal.fire('ลงทะเบียนสำเร็จ!', 'บัญชีผู้ใช้ศิษย์เก่าได้รับการบันทึกข้อมูลเรียบร้อย', 'success'); 
+        showPage('public-home'); 
+      } else {
+        Swal.fire('ล้มเหลว', res.message, 'error');
+      }
+    });
+  }
+
+  // ล็อกอินเข้าระบบหลังบ้าน
+  function doLogin() {
+    Swal.showLoading();
+    runBackend('login', { 
+      username: document.getElementById('login-user').value, 
+      password: document.getElementById('login-pass').value 
+    }, res => {
+      Swal.close();
+      if(res.success) {
+        currentSession = res.user;
+        document.getElementById('nav-user').innerHTML = `<i class="bi bi-shield-check"></i> แอดมิน: ${currentSession.name}`;
+        document.getElementById('nav-user').style.display = ''; 
+        document.getElementById('nav-logout').style.display = '';
+        document.getElementById('menu-admin').style.display = 'block'; 
+        document.getElementById('side-login-btn').style.display = 'none'; 
+        document.getElementById('side-reg-btn').style.display = 'none';
+        showPage('admin-dashboard');
+      } else {
+        Swal.fire('สิทธิ์ไม่ถูกต้อง', res.message, 'error');
+      }
+    });
+  }
+  
+  function doLogout() { 
+    location.reload(); 
+  }
+
+  // ค้นหาศิษย์เก่า
+  function executeAlumniSearch() {
+    const tbody = document.getElementById('alumni-custom-tbody');
+    tbody.innerHTML = '<tr><td colspan="3" class="text-center"><div class="spinner-border spinner-border-sm text-primary"></div> กำลังอ่านประวัติศิษย์เก่า...</td></tr>';
+    
+    runBackend('getAlumni', { status: 'approved' }, res => {
+      if(!res.data || res.data.length === 0) { 
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center py-3">❌ ไม่พบรายชื่อข้อมูล</td></tr>'; 
+        return; 
+      }
+      
+      const gen = document.getElementById('filter-alumni-gen').value;
+      const q = document.getElementById('filter-alumni-q').value.toLowerCase();
+      
+      let filtered = res.data.filter(item => {
+        let mGen = gen ? String(item.generation) === String(gen) : true;
+        let matchText = q ? (
+          String(item.prefix).toLowerCase().includes(q) ||
+          String(item.firstName).toLowerCase().includes(q) ||
+          String(item.lastName).toLowerCase().includes(q) ||
+          String(item.nickname).toLowerCase().includes(q)
+        ) : true;
+        return mGen && matchText;
+      });
+
+      if(filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center py-3">❌ ไม่พบศิษย์เก่าตามเงื่อนไขที่ระบุ</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(i => {
+        const nameDisplay = `${i.prefix || ''}${i.firstName} ${i.lastName} ${i.nickname ? `(${i.nickname})` : ''}`;
+          
+        return `<tr>
+          <td class="text-center"><span class="badge bg-primary rounded-pill">รุ่น ${i.generation}</span></td>
+          <td><strong>${nameDisplay}</strong></td>
+          <td><i class="bi bi-telephone text-muted"></i> ${i.mobile || '-'}</td>
+        </tr>`;
+      }).join('');
+    });
+  }
+
+  // ค้นหาฎีกาคลังสถานศึกษา
+  function executeDeekaSearch() {
+    const tbody = document.getElementById('deeka-table-tbody');
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center"><div class="spinner-border spinner-border-sm text-danger"></div> กำลังดึงข้อมูลคลังเอกสาร...</td></tr>';
+    
+    runBackend('searchDeekaDocuments', { 
+      year: document.getElementById('deeka-year-q').value, 
+      q: document.getElementById('deeka-text-q').value 
+    }, res => {
+      if(!res.data || res.data.length === 0) { 
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-3">❌ ไม่พบหลักฐานเอกสารใบฎีกาในระบบ</td></tr>'; 
+        return; 
+      }
+      tbody.innerHTML = res.data.map(d => `<tr>
+        <td class="fw-bold text-dark">${d.deekaId}</td>
+        <td class="text-center">${d.year}</td>
+        <td><span class="badge bg-light text-dark border">${d.category}</span></td>
+        <td>${d.detail}</td>
+        <td class="text-end fw-bold text-primary">${Number(d.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+        <td>${d.payee}</td>
+        <td class="text-center">${d.fileUrl && d.fileUrl !== "#" ? `<a href="${d.fileUrl}" target="_blank" class="btn btn-sm btn-outline-danger py-0 px-2 small"><i class="bi bi-file-pdf"></i> เปิดดู</a>` : '-'}</td>
+      </tr>`).join('');
+    });
+  }
+
+  // ค้นหาฎีกาผ้าป่าสามัคคีรุ่น
+  function executePhaPaSearch() {
+    const tbody = document.getElementById('phapa-search-tbody');
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center"><div class="spinner-border spinner-border-sm text-danger"></div> กำลังเรียกใบฎีกาผ้าป่า...</td></tr>';
+    runBackend('getPhaPaDeekaList', {}, res => {
+      if(!res.data || res.data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-3">❌ ยังไม่พบการจัดสร้างฎีกาผ้าป่ารุ่นในระบบ</td></tr>';
+        return;
+      }
+      const gen = document.getElementById('phapa-year-q').value;
+      const q = document.getElementById('phapa-text-q').value.toLowerCase();
+      
+      let filtered = res.data.filter(item => {
+        let mGen = gen ? String(item.generation) === String(gen) : true;
+        let mText = q ? String(item.donorName).toLowerCase().includes(q) : true;
+        return mGen && mText;
+      });
+
+      if(filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-3">❌ ไม่พบใบฎีกาตรงตามเงื่อนไขที่ค้นหา</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(d => `<tr>
+        <td class="fw-bold text-primary">${d.deekaId}</td>
+        <td class="text-center"><span class="badge bg-danger">รุ่นที่ ${d.generation}</span></td>
+        <td><strong>${d.donorName}</strong></td>
+        <td class="text-end text-success fw-bold">${Number(d.amount).toLocaleString(undefined, {minimumFractionDigits:2})}</td>
+        <td class="text-center">${d.dateCreated || '-'}</td>
+        <td class="text-center"><a href="${d.fileUrl}" target="_blank" class="btn btn-sm btn-danger fw-bold py-1 px-3"><i class="bi bi-file-earmark-pdf-fill"></i> ดาวน์โหลด PDF</a></td>
+      </tr>`).join('');
+    });
+  }
+
+  // ดึงสถิติกราฟแดชบอร์ด
+  function loadDash() {
+    runBackend('getDashboardMetrics', {}, res => {
+      document.getElementById('dash-alumni').innerText = res.alumniCount || 0;
+      document.getElementById('dash-deeka').innerText = res.deekaCount || 0;
+      document.getElementById('dash-budget').innerText = Number(res.totalBudget || 0).toLocaleString(undefined, {minimumFractionDigits: 2});
+      
+      if(chartInstance) chartInstance.destroy();
+      chartInstance = new Chart(document.getElementById('dbChart').getContext('2d'), {
+        type: 'bar', 
+        data: { 
+          labels: ['ศิษย์เก่าในระบบ (คน)', 'ใบฎีกา + กองผ้าป่า (รายการ)'], 
+          datasets: [{ 
+            label: 'สถิติฐานข้อมูลโรงเรียน', 
+            data: [res.alumniCount || 0, res.deekaCount || 0], 
+            backgroundColor: ['#1a56a0', '#ef4444'],
+            borderRadius: 6
+          }] 
+        }
+      });
+    });
+  }
+
+  // ==========================================
+  // ผู้ประสานรุ่น (CRUD)
+  // ==========================================
+  function loadCoordinatorsTable() {
+    const tb = document.getElementById('coordinator-tbody');
+    tb.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">กำลังเรียกข้อมูลผู้ประสานรุ่น...</td></tr>';
+    runBackend('getCoordinators', {}, res => {
+      if(!res.data || res.data.length === 0) {
+        tb.innerHTML = '<tr><td colspan="6" class="text-center py-3 text-muted">ยังไม่มีบันทึกข้อมูลผู้ประสานรุ่น</td></tr>';
+        return;
+      }
+      tb.innerHTML = res.data.map(c => `<tr>
+        <td class="text-center"><span class="badge bg-dark rounded-pill">รุ่นที่ ${c.generation}</span></td>
+        <td><strong>${c.prefix || ''}${c.firstName} ${c.lastName} ${c.nickname ? `(${c.nickname})` : ''}</strong></td>
+        <td><i class="bi bi-telephone text-muted"></i> ${c.mobile || '-'}</td>
+        <td><span class="text-success fw-bold">${c.lineId || '-'}</span></td>
+        <td><span class="text-muted small">${c.note || '-'}</span></td>
+        <td class="text-center">
+          <button class="btn btn-sm btn-outline-primary py-1 px-2.5 me-1" onclick="editCoordinator(${JSON.stringify(c).replace(/"/g, '&quot;')})"><i class="bi bi-pencil-square"></i> แก้ไข</button>
+          <button class="btn btn-sm btn-outline-danger py-1 px-2.5" onclick="deleteCoordinatorRecord('${c.id}')"><i class="bi bi-trash"></i> ลบ</button>
+        </td>
+      </tr>`).join('');
+    });
+  }
+
+  function openCoordinatorModal() {
+    document.getElementById('coordinatorForm').reset();
+    document.getElementById('coord_id').value = '';
+    coordinatorModal.show();
+  }
+
+  function editCoordinator(c) {
+    document.getElementById('coord_id').value = c.id;
+    document.getElementById('coord_generation').value = c.generation;
+    document.getElementById('coord_prefix').value = c.prefix;
+    document.getElementById('coord_firstName').value = c.firstName;
+    document.getElementById('coord_lastName').value = c.lastName;
+    document.getElementById('coord_nickname').value = c.nickname || '';
+    document.getElementById('coord_mobile').value = c.mobile || '';
+    document.getElementById('coord_lineId').value = c.lineId || '';
+    document.getElementById('coord_note').value = c.note || '';
+    coordinatorModal.show();
+  }
+
+  function processSaveCoordinator() {
+    const data = {
+      id: document.getElementById('coord_id').value,
+      generation: document.getElementById('coord_generation').value,
+      prefix: document.getElementById('coord_prefix').value,
+      firstName: document.getElementById('coord_firstName').value,
+      lastName: document.getElementById('coord_lastName').value,
+      nickname: document.getElementById('coord_nickname').value,
+      mobile: document.getElementById('coord_mobile').value,
+      lineId: document.getElementById('coord_lineId').value,
+      note: document.getElementById('coord_note').value
+    };
+
+    if (!data.generation || !data.firstName || !data.lastName || !data.mobile) {
+      Swal.fire('ข้อความเตือน', 'กรุณาระบุข้อมูลที่จำเป็นให้ครบถ้วนก่อนบันทึก', 'warning');
+      return;
+    }
+
+    Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    runBackend('saveCoordinator', data, res => {
+      Swal.close();
+      if(res.success) {
+        Swal.fire('สำเร็จ', res.message, 'success');
+        coordinatorModal.hide();
+        loadCoordinatorsTable();
+      } else {
+        Swal.fire('เกิดข้อผิดพลาด', res.message, 'error');
+      }
+    });
+  }
+
+  function deleteCoordinatorRecord(id) {
+    Swal.fire({
+      title: 'ต้องการลบข้อมูลผู้ประสานรุ่น?',
+      text: "คุณต้องการลบข้อมูลชุดนี้ออกจากระบบศิษย์เก่าโรงเรียนบ้านนาสวรรค์ใช่หรือไม่",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      confirmButtonText: 'ยืนยันลบข้อมูล'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        Swal.showLoading();
+        runBackend('deleteCoordinator', { id: id }, res => {
+          Swal.close();
+          if(res.success) {
+            Swal.fire('ลบข้อมูลสำเร็จ', res.message, 'success');
+            loadCoordinatorsTable();
+          }
+        });
+      }
+    });
+  }
+
+  // Admin: CRUD ข้อมูลฎีกา
+  function loadDeekaTable() {
+    const tb = document.getElementById('admin-deeka-tbody');
+    tb.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">กำลังเรียกสแกนข้อมูลฎีกา...</td></tr>';
+    runBackend('searchDeekaDocuments', {}, res => {
+      if(!res.data || res.data.length === 0) {
+        tb.innerHTML = '<tr><td colspan="7" class="text-center py-3 text-muted">ยังไม่มีประวัติการบันทึกฎีกา</td></tr>';
+        return;
+      }
+      tb.innerHTML = res.data.map(d => `<tr>
+        <td class="fw-bold">${d.deekaId}</td>
+        <td class="text-center">${d.year}</td>
+        <td>${d.category}</td>
+        <td>${d.detail}</td>
+        <td class="text-end text-primary fw-bold">${Number(d.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+        <td>${d.payee}</td>
+        <td class="text-center">
+          <button class="btn btn-sm btn-outline-danger py-0.5 px-2" onclick="deleteD('${d.deekaId}')"><i class="bi bi-trash"></i> ลบ</button>
+        </td>
+      </tr>`).join('');
+    });
+  }
+  
+  function openDeekaModal() { 
+    document.getElementById('deekaForm').reset(); 
+    document.getElementById('m_url').value = ''; 
+    deekaModal.show(); 
+  }
+  
+  function deleteD(id) {
+    Swal.fire({
+      title: 'ลบรายการข้อมูล?',
+      text: "คุณต้องการลบใบฎีกาชุดนี้ออกจากคลังประวัติโรงเรียนอย่างถาวรหรือไม่",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      confirmButtonText: 'ยืนยันลบ'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        Swal.showLoading();
+        runBackend('deleteDeekaRecord', { deekaId: id }, res => {
+          Swal.close();
+          if(res.success) {
+            Swal.fire('ลบข้อมูลสำเร็จ', 'ลบประวัติฎีกาออกจากระบบแล้ว', 'success');
+            loadDeekaTable();
+          }
+        });
+      }
+    });
+  }
+  
+  function processSaveDeeka() {
+    const file = document.getElementById('m_file').files[0];
+    const data = {
+      deekaId: document.getElementById('m_id').value, 
+      year: document.getElementById('m_yr').value,
+      category: document.getElementById('m_cat').value, 
+      detail: document.getElementById('m_det').value,
+      amount: document.getElementById('m_amt').value, 
+      payee: document.getElementById('m_pay').value,
+      fileUrl: document.getElementById('m_url').value, 
+      date: new Date().toLocaleDateString('th-TH')
+    };
+
+    if(!data.deekaId || !data.amount) {
+      Swal.fire('กรอกข้อมูลไม่ครบ', 'กรุณาระบุเลขที่ฎีกาและจำนวนงบประมาณให้ถูกต้อง', 'warning');
+      return;
+    }
+
+    Swal.fire({ title: 'กำลังบันทึกข้อมูลและอัปโหลดหลักฐาน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+    if(file) {
+      const fr = new FileReader();
+      fr.onload = e => {
+        runBackend('uploadFileToDrive', { 
+          base64Data: e.target.result, 
+          fileName: file.name 
+        }, uRes => {
+          if(uRes.success) {
+            data.fileUrl = uRes.url;
+            runBackend('saveDeekaRecord', data, () => { 
+              Swal.fire('บันทึกสำเร็จ', 'อัปโหลดหลักฐานและจัดเก็บข้อมูลฎีกาเรียบร้อย', 'success'); 
+              deekaModal.hide(); 
+              loadDeekaTable(); 
+            });
+          } else {
+            Swal.fire('ล้มเหลว', 'ไม่สามารถอัปโหลดเอกสารขึ้น Drive ได้: ' + uRes.message, 'error');
+          }
+        });
+      };
+      fr.readAsDataURL(file);
+    } else {
+      runBackend('saveDeekaRecord', data, () => { 
+        Swal.fire('สำเร็จ', 'บันทึกประวัติฎีกาใหม่เข้าฐานข้อมูลเรียบร้อย', 'success'); 
+        deekaModal.hide(); 
+        loadDeekaTable(); 
+      });
+    }
+  }
+
+  // ==========================================
+  // ระบบจัดทำฎีกาผ้าป่ารุ่นอัตโนมัติ (Live Preview & Google Docs Generator)
+  // ==========================================
+  function updateDeekaPreview() {
+    const gen = document.getElementById('pp_generation').value || "...";
+    const prefix = document.getElementById('pp_prefix').value;
+    const fn = document.getElementById('pp_firstName').value || "...";
+    const ln = document.getElementById('pp_lastName').value || "...";
+    const nickname = document.getElementById('pp_nickname').value ? `(${document.getElementById('pp_nickname').value})` : "";
+    
+    const adNo = document.getElementById('pp_addressNo').value || "...";
+    const moo = document.getElementById('pp_moo').value || "...";
+    const sub = document.getElementById('pp_subdistrict').value || "...";
+    const dist = document.getElementById('pp_district').value || "...";
+    const prov = document.getElementById('pp_province').value || "...";
+
+    const amt = document.getElementById('pp_amount').value ? Number(document.getElementById('pp_amount').value).toLocaleString() : "...";
+
+    document.getElementById('view-pp-gen').innerText = gen;
+    document.getElementById('view-pp-name').innerText = `${prefix} ${fn} ${ln} ${nickname}`;
+    document.getElementById('view-pp-address').innerText = `บ้านเลขที่ ${adNo} หมู่ที่ ${moo} ต. ${sub} อ. ${dist} จ. ${prov}`;
+    document.getElementById('view-pp-amount').innerText = amt;
+  }
+
+  function processGeneratePhaPaDeeka() {
+    const params = {
+      generation: document.getElementById('pp_generation').value,
+      prefix: document.getElementById('pp_prefix').value,
+      firstName: document.getElementById('pp_firstName').value.trim(),
+      lastName: document.getElementById('pp_lastName').value.trim(),
+      nickname: document.getElementById('pp_nickname').value.trim(),
+      addressNo: document.getElementById('pp_addressNo').value.trim(),
+      moo: document.getElementById('pp_moo').value.trim(),
+      subdistrict: document.getElementById('pp_subdistrict').value.trim(),
+      district: document.getElementById('pp_district').value.trim(),
+      province: document.getElementById('pp_province').value.trim(),
+      amount: document.getElementById('pp_amount').value
+    };
+
+    if (!params.generation || !params.firstName || !params.lastName || !params.amount) {
+      Swal.fire('ระบุข้อมูลไม่ครบ', 'กรุณาระบุเลขรุ่น ชื่อจริง นามสกุล และจำนวนเงินบริจาคให้ครบถ้วน', 'warning');
+      return;
+    }
+
+    Swal.fire({
+      title: 'กำลังเข้าสู่ Google Docs...',
+      text: 'ระบบกำลังป้อนตัวแปร บันทึก PDF ใน Google Drive และจัดเก็บข้อมูล...',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+
+    runBackend('generatePhaPaDeeka', params, res => {
+      Swal.close();
+      if (res.success) {
+        Swal.fire({
+          title: 'จัดทำฎีกาผ้าป่าสำเร็จ!',
+          text: 'ระบบสร้างเอกสารและเซฟไฟล์ PDF บนไดรฟ์เรียบร้อยแล้ว',
+          icon: 'success',
+          showCancelButton: true,
+          confirmButtonText: 'เปิดดู/ดาวน์โหลด PDF',
+          cancelButtonText: 'ปิดหน้าต่าง'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            window.open(res.pdfUrl, '_blank');
+          }
+        });
+        document.getElementById('phapaDeekaForm').reset();
+        updateDeekaPreview();
+      } else {
+        Swal.fire('ล้มเหลว', 'เกิดข้อผิดพลาด: ' + res.message, 'error');
+      }
+    });
+  }
+</script>
+</body>
+</html>
