@@ -10,6 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     :root {
       --primary: #1a56a0;
@@ -161,6 +162,7 @@
     <a class="nav-link" id="link-admin-coordinator-crud" onclick="showPage('admin-coordinator-crud')"><i class="bi bi-person-vcard-fill"></i> จัดการผู้ประสานรุ่น (CRUD)</a>
     <a class="nav-link" id="link-admin-phapa-maker" onclick="showPage('admin-phapa-maker')"><i class="bi bi-file-earmark-word-fill"></i> จัดทำฎีกาผ้าป่ารุ่น (Google Docs)</a>
     <a class="nav-link" id="link-admin-deeka-crud" onclick="showPage('admin-deeka-crud')"><i class="bi bi-folder-plus"></i> จัดการคลังใบฎีกา (CRUD)</a>
+    <a class="nav-link" id="link-admin-alumni-import" onclick="showPage('admin-alumni-import')"><i class="bi bi-file-earmark-excel-fill"></i> นำเข้าศิษย์เก่า (Excel)</a>
   </div>
 </div>
 
@@ -628,6 +630,57 @@
     </div>
   </div>
 
+  <!-- ===== PAGE: ADMIN ALUMNI IMPORT ===== -->
+  <div class="page-section" id="page-admin-alumni-import">
+    <div class="card shadow-sm">
+      <div class="card-header bg-success text-white py-3">
+        <h6 class="fw-bold mb-0"><i class="bi bi-file-earmark-excel-fill"></i> นำเข้าข้อมูลศิษย์เก่าปริมาณมาก (Excel Import)</h6>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-info py-2 small mb-4">
+          <i class="bi bi-info-circle-fill"></i> <strong>คำแนะนำโครงสร้างหัวคอลัมน์ใน Excel:</strong> <br>
+          บรรทัดแรกสุดของไฟล์ควรจัดเรียงหัวข้อตามลำดับดังนี้: <br>
+          <code>รุ่น</code> | <code>คำนำหน้า</code> | <code>ชื่อจริง</code> | <code>นามสกุล</code> | <code>ชื่อเล่น</code> | <code>เบอร์โทร</code> | <code>อีเมล</code> | <code>สาขาวิชา</code> | <code>ตำแหน่งในรุ่น</code> | <code>บริษัท/สถานที่ทำงาน</code>
+        </div>
+        
+        <div class="row g-2 mb-3">
+          <div class="col-md-9">
+            <input type="file" id="alumni-excel-input" class="form-control" accept=".xlsx, .xls">
+          </div>
+          <div class="col-md-3">
+            <button class="btn btn-success w-100" onclick="handleExcelImportPreview()"><i class="bi bi-eye"></i> ตรวจสอบโครงสร้างไฟล์</button>
+          </div>
+        </div>
+        
+        <div id="excel-preview-container" style="display:none;">
+          <h6 class="fw-bold mt-4 mb-2 text-dark border-bottom pb-2">ข้อมูลจำลองศิษย์ก่อนำเข้าจริง (<span id="excel-row-count">0</span> รายการ)</h6>
+          <div class="table-responsive" style="max-height: 380px;">
+            <table class="table table-bordered table-striped align-middle table-sm small">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th>รุ่น</th>
+                  <th>คำนำหน้า</th>
+                  <th>ชื่อจริง</th>
+                  <th>นามสกุล</th>
+                  <th>ชื่อเล่น</th>
+                  <th>เบอร์โทร</th>
+                  <th>อีเมล</th>
+                  <th>สาขาวิชา</th>
+                  <th>ตำแหน่งในรุ่น</th>
+                  <th>บริษัท/สถานที่ทำงาน</th>
+                </tr>
+              </thead>
+              <tbody id="excel-preview-tbody"></tbody>
+            </table>
+          </div>
+          <div class="mt-3 text-end">
+            <button class="btn btn-primary fw-bold px-4 py-2" onclick="commitExcelImport()"><i class="bi bi-cloud-upload-fill"></i> ยืนยันบันทึกข้อมูลศิษย์เก่าเข้าฐานข้อมูล</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 </div>
 
@@ -750,7 +803,7 @@
   // ==========================================
   // กำหนดลิงก์ปลายทาง API Google Apps Script ที่ Deploy เสร็จสมบูรณ์
   // ==========================================
-  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx0Zfr_hAAs-WkkjB33PFobcBEdoPUkpmZ6w-oExsa5MAqELRSRuHMGHRT12TucYostcw/exec"; 
+  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwJmmdhmviBipPVeG-LRvXBoMnRveyPfdOSuILG_OAyxIJvISvjqFxDj2n172eAMar5xA/exec"; 
 
   let currentSession = null;
   let deekaModal = null;
@@ -844,6 +897,123 @@
     if(id === 'admin-coordinator-crud') loadCoordinatorsTable();
   }
   
+  let parsedAlumniData = [];
+
+  function handleExcelImportPreview() {
+    const fileInput = document.getElementById('alumni-excel-input');
+    const file = fileInput.files[0];
+    if(!file) {
+      Swal.fire('แจ้งเตือน', 'กรุณาเลือกไฟล์ Excel (.xlsx หรือ .xls) ก่อนดำเนินการตรวจสอบ', 'warning');
+      return;
+    }
+
+    Swal.fire({ title: 'กำลังประมวลผลอ่านไฟล์...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        
+        const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        Swal.close();
+
+        if(rawRows.length <= 1) {
+          Swal.fire('ข้อผิดพลาด', 'ไม่พบรายชื่อศิษย์เก่าในไฟล์ Excel นี้', 'error');
+          return;
+        }
+
+        parsedAlumniData = [];
+        const tbody = document.getElementById('excel-preview-tbody');
+        tbody.innerHTML = '';
+
+        // ข้ามบรรทัดที่ 0 (หัวตาราง) เริ่มอ่านประวัติตั้งแต่บรรทัดที่ 1
+        for(let i = 1; i < rawRows.length; i++) {
+          const row = rawRows[i];
+          if(!row || row.length === 0) continue;
+
+          const alumniItem = {
+            generation: row[0] || "",
+            prefix: row[1] || "",
+            firstName: row[2] || "",
+            lastName: row[3] || "",
+            nickname: row[4] || "",
+            mobile: row[5] || "",
+            email: row[6] || "",
+            branch: row[7] || "",
+            position: row[8] || "",
+            company: row[9] || ""
+          };
+
+          // ตรวจสอบข้อมูลจำเป็นหลัก (รุ่น, ชื่อ, นามสกุล)
+          if(!alumniItem.generation || !alumniItem.firstName || !alumniItem.lastName) {
+            continue; 
+          }
+
+          parsedAlumniData.push(alumniItem);
+
+          tbody.innerHTML += `<tr>
+            <td class="text-center"><span class="badge bg-primary">รุ่นที่ ${alumniItem.generation}</span></td>
+            <td>${alumniItem.prefix}</td>
+            <td class="fw-bold">${alumniItem.firstName}</td>
+            <td>${alumniItem.lastName}</td>
+            <td>${alumniItem.nickname || '-'}</td>
+            <td>${alumniItem.mobile || '-'}</td>
+            <td>${alumniItem.email || '-'}</td>
+            <td>${alumniItem.branch || '-'}</td>
+            <td class="text-success fw-bold">${alumniItem.position || '-'}</td>
+            <td>${alumniItem.company || '-'}</td>
+          </tr>`;
+        }
+
+        if(parsedAlumniData.length === 0) {
+          Swal.fire('ข้อผิดพลาด', 'ไม่พบข้อมูลที่ถูกต้องตามเงื่อนไขที่ระบุไว้ในคำแนะนำ', 'error');
+          document.getElementById('excel-preview-container').style.display = 'none';
+        } else {
+          document.getElementById('excel-row-count').innerText = parsedAlumniData.length;
+          document.getElementById('excel-preview-container').style.display = 'block';
+        }
+      } catch (err) {
+        Swal.close();
+        Swal.fire('ระบบขัดข้อง', 'ไม่สามารถแยกวิเคราะห์ไฟล์นี้ได้สำเร็จ: ' + err.message, 'error');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function commitExcelImport() {
+    if (parsedAlumniData.length === 0) {
+      Swal.fire('คำเตือน', 'กรุณาอัปโหลดไฟล์ที่มีแถวข้อมูลเรียบร้อยแล้ว', 'error');
+      return;
+    }
+
+    Swal.fire({
+      title: 'กดยืนยันบันทึกข้อมูล?',
+      text: `ระบบกำลังจะนำเข้าข้อมูลศิษย์เก่าจำนวนทั้งหมด ${parsedAlumniData.length} รายการ ลงสู่ Google Sheets`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      confirmButtonText: 'ยืนยัน'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        Swal.fire({ title: 'กำลังนำรายชื่อเข้าฐานข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        runBackend('importAlumniBatch', { alumniList: parsedAlumniData }, res => {
+          Swal.close();
+          if (res.success) {
+            Swal.fire('สำเร็จเรียบร้อย!', res.message, 'success');
+            document.getElementById('alumni-excel-input').value = '';
+            document.getElementById('excel-preview-container').style.display = 'none';
+            parsedAlumniData = [];
+          } else {
+            Swal.fire('ไม่สามารถส่งข้อมูลได้', res.message, 'error');
+          }
+        });
+      }
+    });
+  }
+
   function toggleSidebar() { 
     document.getElementById('sidebar').classList.toggle('open'); 
   }
